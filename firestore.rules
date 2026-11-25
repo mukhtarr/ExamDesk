@@ -1,0 +1,422 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Hardened Global Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isTokenAdmin() {
+      return isEmailVerified() && request.auth.token.email == 'mukhtar.amir44@gmail.com';
+    }
+
+    function isExamController() {
+      return isTokenAdmin() || (
+        isEmailVerified() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'exam_controller'
+      );
+    }
+
+    function isStaff() {
+      return isTokenAdmin() || (
+        isEmailVerified() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid))
+      );
+    }
+
+    // 3. Entity Validation Blueprints
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'email', 'role', 'department', 'assignedSubjects', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'email', 'role', 'department', 'assignedSubjects', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 150
+        && data.role in ['exam_controller', 'subject_owner']
+        && data.department is string && data.department.size() >= 1 && data.department.size() <= 100
+        && data.assignedSubjects is list && data.assignedSubjects.size() <= 20
+        && (data.assignedSubjects.size() == 0 || data.assignedSubjects[0] is string)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidSubject(data) {
+      return data.keys().hasAll(['code', 'name', 'department', 'ownerId', 'ownerName', 'topics', 'syllabusText', 'workspaceScope', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['code', 'name', 'department', 'ownerId', 'ownerName', 'topics', 'syllabusText', 'workspaceScope', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.code is string && data.code.size() >= 2 && data.code.size() <= 20
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 120
+        && data.department is string && data.department.size() >= 2 && data.department.size() <= 100
+        && isValidId(data.ownerId)
+        && data.ownerName is string && data.ownerName.size() >= 1 && data.ownerName.size() <= 100
+        && data.topics is list && data.topics.size() >= 1 && data.topics.size() <= 30 && data.topics[0] is string
+        && data.syllabusText is string && data.syllabusText.size() <= 50000
+        && data.workspaceScope == 'institutional'
+        && isValidId(data.createdBy)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidQuestion(data) {
+      return data.keys().hasAll(['subjectId', 'subjectCode', 'topic', 'text', 'difficulty', 'marks', 'bloomLevel', 'actionVerb', 'expectedAnswer', 'source', 'usageCount', 'overrideCount', 'workspaceScope', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['subjectId', 'subjectCode', 'topic', 'text', 'difficulty', 'marks', 'bloomLevel', 'actionVerb', 'expectedAnswer', 'source', 'usageCount', 'overrideCount', 'workspaceScope', 'createdBy', 'createdAt', 'updatedAt'])
+        && isValidId(data.subjectId)
+        && data.subjectCode is string && data.subjectCode.size() >= 2 && data.subjectCode.size() <= 20
+        && data.topic is string && data.topic.size() >= 2 && data.topic.size() <= 120
+        && data.text is string && data.text.size() >= 10 && data.text.size() <= 2000
+        && data.difficulty in ['Easy', 'Medium', 'Hard']
+        && data.marks is int && data.marks >= 1 && data.marks <= 50
+        && data.bloomLevel is int && data.bloomLevel in [2, 3, 4]
+        && data.actionVerb is string && data.actionVerb.size() >= 2 && data.actionVerb.size() <= 40
+        && data.expectedAnswer is string && data.expectedAnswer.size() <= 3000
+        && data.source in ['bank', 'ai_syllabus', 'manual']
+        && data.usageCount is int && data.usageCount >= 0 && data.usageCount <= 100000
+        && data.overrideCount is int && data.overrideCount >= 0 && data.overrideCount <= 100000
+        && data.workspaceScope == 'institutional'
+        && isValidId(data.createdBy)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPaperTemplate(data) {
+      return data.keys().hasAll(['name', 'description', 'totalMarks', 'durationMinutes', 'instructions', 'sections', 'workspaceScope', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['name', 'description', 'totalMarks', 'durationMinutes', 'instructions', 'sections', 'workspaceScope', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 120
+        && data.description is string && data.description.size() <= 500
+        && data.totalMarks is int && data.totalMarks >= 1 && data.totalMarks <= 500
+        && data.durationMinutes is int && data.durationMinutes >= 15 && data.durationMinutes <= 360
+        && data.instructions is list && data.instructions.size() <= 15
+        && (data.instructions.size() == 0 || data.instructions[0] is string)
+        && data.sections is list && data.sections.size() >= 1 && data.sections.size() <= 10 && data.sections[0] is map
+        && data.workspaceScope == 'institutional'
+        && isValidId(data.createdBy)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidQuestionPaper(data) {
+      return data.keys().hasAll(['title', 'subjectId', 'subjectCode', 'subjectName', 'examType', 'academicTerm', 'durationMinutes', 'totalMarks', 'instructions', 'sections', 'status', 'reviewNotes', 'reviewerName', 'workspaceScope', 'createdBy', 'createdByName', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['title', 'subjectId', 'subjectCode', 'subjectName', 'examType', 'academicTerm', 'durationMinutes', 'totalMarks', 'instructions', 'sections', 'status', 'reviewNotes', 'reviewerName', 'workspaceScope', 'createdBy', 'createdByName', 'submittedForReviewAt', 'lastReminderSentAt', 'createdAt', 'updatedAt'])
+        && data.title is string && data.title.size() >= 3 && data.title.size() <= 150
+        && isValidId(data.subjectId)
+        && data.subjectCode is string && data.subjectCode.size() >= 2 && data.subjectCode.size() <= 20
+        && data.subjectName is string && data.subjectName.size() >= 2 && data.subjectName.size() <= 120
+        && data.examType is string && data.examType.size() >= 2 && data.examType.size() <= 60
+        && data.academicTerm is string && data.academicTerm.size() >= 2 && data.academicTerm.size() <= 60
+        && data.durationMinutes is int && data.durationMinutes >= 15 && data.durationMinutes <= 360
+        && data.totalMarks is int && data.totalMarks >= 1 && data.totalMarks <= 500
+        && data.instructions is list && data.instructions.size() <= 15
+        && (data.instructions.size() == 0 || data.instructions[0] is string)
+        && data.sections is list && data.sections.size() >= 1 && data.sections.size() <= 10 && data.sections[0] is map
+        && data.status in ['draft', 'pending_review', 'changes_requested', 'approved', 'published']
+        && data.reviewNotes is string && data.reviewNotes.size() <= 2000
+        && data.reviewerName is string && data.reviewerName.size() <= 100
+        && data.workspaceScope == 'institutional'
+        && isValidId(data.createdBy)
+        && data.createdByName is string && data.createdByName.size() >= 1 && data.createdByName.size() <= 100
+        && (!('submittedForReviewAt' in data) || data.submittedForReviewAt is timestamp)
+        && (!('lastReminderSentAt' in data) || data.lastReminderSentAt is timestamp)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidStudentAssessment(data) {
+      return data.keys().hasAll(['subjectId', 'subjectCode', 'paperId', 'paperTitle', 'cohort', 'examDate', 'studentCount', 'averageScore', 'passRate', 'bloomAttainment', 'topicMastery', 'workspaceScope', 'createdBy', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['subjectId', 'subjectCode', 'paperId', 'paperTitle', 'cohort', 'examDate', 'studentCount', 'averageScore', 'passRate', 'bloomAttainment', 'topicMastery', 'workspaceScope', 'createdBy', 'createdAt', 'updatedAt'])
+        && isValidId(data.subjectId)
+        && data.subjectCode is string && data.subjectCode.size() >= 2 && data.subjectCode.size() <= 20
+        && data.paperId is string && data.paperId.size() >= 1 && data.paperId.size() <= 128
+        && data.paperTitle is string && data.paperTitle.size() >= 2 && data.paperTitle.size() <= 150
+        && data.cohort is string && data.cohort.size() >= 2 && data.cohort.size() <= 80
+        && data.examDate is string && data.examDate.size() >= 4 && data.examDate.size() <= 30
+        && data.studentCount is int && data.studentCount >= 1 && data.studentCount <= 5000
+        && (data.averageScore is number) && data.averageScore >= 0 && data.averageScore <= 100
+        && (data.passRate is number) && data.passRate >= 0 && data.passRate <= 100
+        && data.bloomAttainment is map
+        && data.topicMastery is list && data.topicMastery.size() <= 25
+        && (data.topicMastery.size() == 0 || data.topicMastery[0] is map)
+        && data.workspaceScope == 'institutional'
+        && isValidId(data.createdBy)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidReviewNotification(data) {
+      return data.keys().hasAll(['paperId', 'paperTitle', 'subjectCode', 'recipientUid', 'recipientName', 'recipientEmail', 'triggerType', 'emailSubject', 'emailBody', 'deliveryStatus', 'deliveryNote', 'sentBy', 'createdAt'])
+        && data.keys().hasOnly(['paperId', 'paperTitle', 'subjectCode', 'recipientUid', 'recipientName', 'recipientEmail', 'triggerType', 'emailSubject', 'emailBody', 'deliveryStatus', 'deliveryNote', 'sentBy', 'createdAt'])
+        && isValidId(data.paperId)
+        && data.paperTitle is string && data.paperTitle.size() >= 2 && data.paperTitle.size() <= 150
+        && data.subjectCode is string && data.subjectCode.size() >= 2 && data.subjectCode.size() <= 20
+        && isValidId(data.recipientUid)
+        && data.recipientName is string && data.recipientName.size() >= 1 && data.recipientName.size() <= 100
+        && data.recipientEmail is string && data.recipientEmail.size() >= 3 && data.recipientEmail.size() <= 150
+        && data.triggerType in ['submission', 'reminder_overdue', 'changes_requested', 'approved']
+        && data.emailSubject is string && data.emailSubject.size() >= 3 && data.emailSubject.size() <= 200
+        && data.emailBody is string && data.emailBody.size() >= 10 && data.emailBody.size() <= 5000
+        && data.deliveryStatus in ['sent_smtp', 'queued_preview', 'failed']
+        && data.deliveryNote is string && data.deliveryNote.size() <= 500
+        && isValidId(data.sentBy)
+        && data.createdAt is timestamp;
+    }
+
+    function isValidNotificationSetting(data) {
+      return data.keys().hasAll(['autoRemindEnabled', 'pendingThresholdDays', 'controllerEmail', 'updatedBy', 'updatedAt'])
+        && data.keys().hasOnly(['autoRemindEnabled', 'pendingThresholdDays', 'controllerEmail', 'updatedBy', 'updatedAt'])
+        && data.autoRemindEnabled is bool
+        && data.pendingThresholdDays is int && data.pendingThresholdDays >= 1 && data.pendingThresholdDays <= 30
+        && data.controllerEmail is string && data.controllerEmail.size() >= 3 && data.controllerEmail.size() <= 150
+        && isValidId(data.updatedBy)
+        && data.updatedAt is timestamp;
+    }
+
+    // 4. Collection Match Blocks
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isEmailVerified() && (userId == request.auth.uid || isExamController());
+      allow list: if isEmailVerified() && (resource.data.uid == request.auth.uid || isTokenAdmin());
+
+      allow create: if isValidId(userId)
+        && isEmailVerified()
+        && isValidUser(incoming())
+        && incoming().uid == request.auth.uid
+        && userId == request.auth.uid
+        && (incoming().role == 'subject_owner' || isTokenAdmin())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isValidId(userId)
+        && isEmailVerified()
+        && isValidUser(incoming())
+        && incoming().uid == existing().uid
+        && incoming().email == existing().email
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isExamController() ||
+          (
+            userId == request.auth.uid &&
+            incoming().role == existing().role &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'department', 'assignedSubjects', 'updatedAt'])
+          )
+        );
+
+      allow delete: if isValidId(userId) && isExamController();
+    }
+
+    match /subjects/{subjectId} {
+      allow get: if isValidId(subjectId) && isStaff();
+      allow list: if isEmailVerified() && resource.data.workspaceScope == 'institutional';
+
+      allow create: if isValidId(subjectId)
+        && isStaff()
+        && isValidSubject(incoming())
+        && incoming().createdBy == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isValidId(subjectId)
+        && isEmailVerified()
+        && isValidSubject(incoming())
+        && incoming().createdBy == existing().createdBy
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isExamController() ||
+          (
+            (existing().ownerId == request.auth.uid || existing().createdBy == request.auth.uid) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['code', 'name', 'department', 'ownerName', 'topics', 'syllabusText', 'updatedAt'])
+          )
+        );
+
+      allow delete: if isValidId(subjectId) && isExamController();
+    }
+
+    match /questions/{questionId} {
+      allow get: if isValidId(questionId) && isStaff();
+      allow list: if isEmailVerified() && resource.data.workspaceScope == 'institutional';
+
+      allow create: if isValidId(questionId)
+        && isStaff()
+        && isValidQuestion(incoming())
+        && incoming().createdBy == request.auth.uid
+        && exists(/databases/$(database)/documents/subjects/$(incoming().subjectId))
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isValidId(questionId)
+        && isEmailVerified()
+        && isValidQuestion(incoming())
+        && incoming().createdBy == existing().createdBy
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isExamController() ||
+          (
+            existing().createdBy == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['subjectId', 'subjectCode', 'topic', 'text', 'difficulty', 'marks', 'bloomLevel', 'actionVerb', 'expectedAnswer', 'source', 'updatedAt'])
+          ) ||
+          (
+            isStaff() &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['usageCount', 'overrideCount', 'updatedAt'])
+          )
+        );
+
+      allow delete: if isValidId(questionId) && (isExamController() || (isEmailVerified() && existing().createdBy == request.auth.uid));
+    }
+
+    match /paperTemplates/{templateId} {
+      allow get: if isValidId(templateId) && isStaff();
+      allow list: if isEmailVerified() && resource.data.workspaceScope == 'institutional';
+
+      allow create: if isValidId(templateId)
+        && isStaff()
+        && isValidPaperTemplate(incoming())
+        && incoming().createdBy == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isValidId(templateId)
+        && isEmailVerified()
+        && isValidPaperTemplate(incoming())
+        && incoming().createdBy == existing().createdBy
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isExamController() ||
+          (
+            existing().createdBy == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'totalMarks', 'durationMinutes', 'instructions', 'sections', 'updatedAt'])
+          )
+        );
+
+      allow delete: if isValidId(templateId) && (isExamController() || (isEmailVerified() && existing().createdBy == request.auth.uid));
+    }
+
+    match /questionPapers/{paperId} {
+      allow get: if isValidId(paperId) && isStaff();
+      allow list: if isEmailVerified() && resource.data.workspaceScope == 'institutional';
+
+      allow create: if isValidId(paperId)
+        && isStaff()
+        && isValidQuestionPaper(incoming())
+        && incoming().createdBy == request.auth.uid
+        && incoming().status == 'draft'
+        && exists(/databases/$(database)/documents/subjects/$(incoming().subjectId))
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isValidId(paperId)
+        && isEmailVerified()
+        && isValidQuestionPaper(incoming())
+        && incoming().createdBy == existing().createdBy
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (existing().status != 'published' || isExamController())
+        && (
+          isExamController() ||
+          (
+            existing().createdBy == request.auth.uid &&
+            existing().status in ['draft', 'changes_requested'] &&
+            incoming().status in ['draft', 'pending_review'] &&
+            (incoming().status != 'pending_review' || incoming().submittedForReviewAt == request.time) &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['title', 'examType', 'academicTerm', 'durationMinutes', 'totalMarks', 'instructions', 'sections', 'status', 'submittedForReviewAt', 'updatedAt'])
+          ) ||
+          (
+            isStaff() &&
+            existing().status == 'pending_review' &&
+            incoming().status == 'pending_review' &&
+            incoming().lastReminderSentAt == request.time &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['lastReminderSentAt', 'updatedAt'])
+          )
+        );
+
+      allow delete: if isValidId(paperId) && (isExamController() || (isEmailVerified() && existing().createdBy == request.auth.uid && existing().status == 'draft'));
+    }
+
+    match /studentAssessments/{assessmentId} {
+      allow get: if isValidId(assessmentId) && isStaff();
+      allow list: if isEmailVerified() && resource.data.workspaceScope == 'institutional';
+
+      allow create: if isValidId(assessmentId)
+        && isStaff()
+        && isValidStudentAssessment(incoming())
+        && incoming().createdBy == request.auth.uid
+        && exists(/databases/$(database)/documents/subjects/$(incoming().subjectId))
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isValidId(assessmentId)
+        && isEmailVerified()
+        && isValidStudentAssessment(incoming())
+        && incoming().createdBy == existing().createdBy
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isExamController() ||
+          (
+            existing().createdBy == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['paperId', 'paperTitle', 'cohort', 'examDate', 'studentCount', 'averageScore', 'passRate', 'bloomAttainment', 'topicMastery', 'updatedAt'])
+          )
+        );
+
+      allow delete: if isValidId(assessmentId) && (isExamController() || (isEmailVerified() && existing().createdBy == request.auth.uid));
+    }
+
+    match /reviewNotifications/{notificationId} {
+      allow get: if isValidId(notificationId) && isEmailVerified() && (
+        isExamController() ||
+        existing().recipientUid == request.auth.uid ||
+        existing().sentBy == request.auth.uid
+      );
+      allow list: if isEmailVerified() && (
+        resource.data.recipientUid == request.auth.uid ||
+        resource.data.sentBy == request.auth.uid ||
+        isTokenAdmin()
+      );
+
+      allow create: if isValidId(notificationId)
+        && isStaff()
+        && isValidReviewNotification(incoming())
+        && incoming().sentBy == request.auth.uid
+        && exists(/databases/$(database)/documents/questionPapers/$(incoming().paperId))
+        && incoming().createdAt == request.time;
+
+      allow update: if false;
+      allow delete: if isValidId(notificationId) && isExamController();
+    }
+
+    match /notificationSettings/{settingId} {
+      allow get: if isValidId(settingId) && isExamController();
+      allow list: if isTokenAdmin();
+
+      allow create, update: if isValidId(settingId)
+        && isExamController()
+        && isValidNotificationSetting(incoming())
+        && incoming().updatedBy == request.auth.uid
+        && incoming().updatedAt == request.time;
+
+      allow delete: if false;
+    }
+  }
+}

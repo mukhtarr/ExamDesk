@@ -1,0 +1,533 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Authenticated staff profile with RBAC role (exam_controller or subject_owner).",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 150
+        },
+        "role": {
+          "type": "string",
+          "enum": ["exam_controller", "subject_owner"]
+        },
+        "department": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "assignedSubjects": {
+          "type": "array",
+          "description": "List of subject IDs assigned to the subject owner."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "displayName", "email", "role", "department", "assignedSubjects", "createdAt", "updatedAt"]
+    },
+    "Subject": {
+      "title": "Subject",
+      "description": "Academic course/subject with syllabus and topic list.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 20
+        },
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "department": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "ownerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "topics": {
+          "type": "array"
+        },
+        "syllabusText": {
+          "type": "string",
+          "maxLength": 50000
+        },
+        "workspaceScope": {
+          "type": "string",
+          "enum": ["institutional"]
+        },
+        "createdBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["code", "name", "department", "ownerId", "ownerName", "topics", "syllabusText", "workspaceScope", "createdBy", "createdAt", "updatedAt"]
+    },
+    "Question": {
+      "title": "Question",
+      "description": "Question bank item tagged with topic, difficulty, marks, Bloom's level (2-4), and action verb.",
+      "type": "object",
+      "properties": {
+        "subjectId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "subjectCode": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 20
+        },
+        "topic": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "text": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 2000
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["Easy", "Medium", "Hard"]
+        },
+        "marks": {
+          "type": "integer"
+        },
+        "bloomLevel": {
+          "type": "integer"
+        },
+        "actionVerb": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 40
+        },
+        "expectedAnswer": {
+          "type": "string",
+          "maxLength": 3000
+        },
+        "source": {
+          "type": "string",
+          "enum": ["bank", "ai_syllabus", "manual"]
+        },
+        "usageCount": {
+          "type": "integer"
+        },
+        "overrideCount": {
+          "type": "integer"
+        },
+        "workspaceScope": {
+          "type": "string",
+          "enum": ["institutional"]
+        },
+        "createdBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["subjectId", "subjectCode", "topic", "text", "difficulty", "marks", "bloomLevel", "actionVerb", "expectedAnswer", "source", "usageCount", "overrideCount", "workspaceScope", "createdBy", "createdAt", "updatedAt"]
+    },
+    "PaperTemplate": {
+      "title": "PaperTemplate",
+      "description": "Reusable question paper blueprint defining sections, marks, and Bloom's rules.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "totalMarks": {
+          "type": "integer"
+        },
+        "durationMinutes": {
+          "type": "integer"
+        },
+        "instructions": {
+          "type": "array"
+        },
+        "sections": {
+          "type": "array"
+        },
+        "workspaceScope": {
+          "type": "string",
+          "enum": ["institutional"]
+        },
+        "createdBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["name", "description", "totalMarks", "durationMinutes", "instructions", "sections", "workspaceScope", "createdBy", "createdAt", "updatedAt"]
+    },
+    "QuestionPaper": {
+      "title": "QuestionPaper",
+      "description": "Generated and optionally manually overridden question paper with review workflow status.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 150
+        },
+        "subjectId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "subjectCode": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 20
+        },
+        "subjectName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "examType": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "academicTerm": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 60
+        },
+        "durationMinutes": {
+          "type": "integer"
+        },
+        "totalMarks": {
+          "type": "integer"
+        },
+        "instructions": {
+          "type": "array"
+        },
+        "sections": {
+          "type": "array"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["draft", "pending_review", "changes_requested", "approved", "published"]
+        },
+        "reviewNotes": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "reviewerName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "workspaceScope": {
+          "type": "string",
+          "enum": ["institutional"]
+        },
+        "createdBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdByName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "submittedForReviewAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "lastReminderSentAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["title", "subjectId", "subjectCode", "subjectName", "examType", "academicTerm", "durationMinutes", "totalMarks", "instructions", "sections", "status", "reviewNotes", "reviewerName", "workspaceScope", "createdBy", "createdByName", "createdAt", "updatedAt"]
+    },
+    "StudentAssessment": {
+      "title": "StudentAssessment",
+      "description": "Cohort assessment results and Bloom's taxonomy attainment analytics.",
+      "type": "object",
+      "properties": {
+        "subjectId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "subjectCode": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 20
+        },
+        "paperId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "paperTitle": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 150
+        },
+        "cohort": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "examDate": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 30
+        },
+        "studentCount": {
+          "type": "integer"
+        },
+        "averageScore": {
+          "type": "number"
+        },
+        "passRate": {
+          "type": "number"
+        },
+        "bloomAttainment": {
+          "type": "object"
+        },
+        "topicMastery": {
+          "type": "array"
+        },
+        "workspaceScope": {
+          "type": "string",
+          "enum": ["institutional"]
+        },
+        "createdBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["subjectId", "subjectCode", "paperId", "paperTitle", "cohort", "examDate", "studentCount", "averageScore", "passRate", "bloomAttainment", "topicMastery", "workspaceScope", "createdBy", "createdAt", "updatedAt"]
+    },
+    "ReviewNotification": {
+      "title": "ReviewNotification",
+      "description": "Email notification audit record for pending review cycles.",
+      "type": "object",
+      "properties": {
+        "paperId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "paperTitle": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 150
+        },
+        "subjectCode": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 20
+        },
+        "recipientUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "recipientName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "recipientEmail": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 150
+        },
+        "triggerType": {
+          "type": "string",
+          "enum": ["submission", "reminder_overdue", "changes_requested", "approved"]
+        },
+        "emailSubject": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 200
+        },
+        "emailBody": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 5000
+        },
+        "deliveryStatus": {
+          "type": "string",
+          "enum": ["sent_smtp", "queued_preview", "failed"]
+        },
+        "deliveryNote": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "sentBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["paperId", "paperTitle", "subjectCode", "recipientUid", "recipientName", "recipientEmail", "triggerType", "emailSubject", "emailBody", "deliveryStatus", "deliveryNote", "sentBy", "createdAt"]
+    },
+    "NotificationSetting": {
+      "title": "NotificationSetting",
+      "description": "Automated pending review email cycle settings.",
+      "type": "object",
+      "properties": {
+        "autoRemindEnabled": {
+          "type": "boolean"
+        },
+        "pendingThresholdDays": {
+          "type": "integer"
+        },
+        "controllerEmail": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 150
+        },
+        "updatedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["autoRemindEnabled", "pendingThresholdDays", "controllerEmail", "updatedBy", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles and RBAC role assignments."
+    },
+    "/subjects/{subjectId}": {
+      "schema": { "$ref": "#/entities/Subject" },
+      "description": "Course subjects and uploaded syllabi."
+    },
+    "/questions/{questionId}": {
+      "schema": { "$ref": "#/entities/Question" },
+      "description": "Question bank items with Bloom's taxonomy metadata."
+    },
+    "/paperTemplates/{templateId}": {
+      "schema": { "$ref": "#/entities/PaperTemplate" },
+      "description": "Question paper format blueprints."
+    },
+    "/questionPapers/{paperId}": {
+      "schema": { "$ref": "#/entities/QuestionPaper" },
+      "description": "Generated question papers and review cycle states."
+    },
+    "/studentAssessments/{assessmentId}": {
+      "schema": { "$ref": "#/entities/StudentAssessment" },
+      "description": "Student performance batches for analytics."
+    },
+    "/reviewNotifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/ReviewNotification" },
+      "description": "Automated review cycle email notification logs."
+    },
+    "/notificationSettings/{settingId}": {
+      "schema": { "$ref": "#/entities/NotificationSetting" },
+      "description": "Global reminder cycle configuration."
+    }
+  }
+}
